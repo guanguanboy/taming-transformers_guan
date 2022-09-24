@@ -8,6 +8,7 @@ from taming.modules.diffusionmodules.model import Encoder, Decoder
 from taming.modules.vqvae.quantize import VectorQuantizer2 as VectorQuantizer
 from taming.modules.vqvae.quantize import GumbelQuantize
 from taming.modules.vqvae.quantize import EMAVectorQuantizer
+from packaging import version
 
 class VQModel(pl.LightningModule):
     def __init__(self,
@@ -17,7 +18,7 @@ class VQModel(pl.LightningModule):
                  embed_dim,
                  ckpt_path=None,
                  ignore_keys=[],
-                 image_key="image",
+                 image_key="cond_image",
                  colorize_nlabels=None,
                  monitor=None,
                  remap=None,
@@ -77,7 +78,7 @@ class VQModel(pl.LightningModule):
         x = batch[k]
         if len(x.shape) == 3:
             x = x[..., None]
-        x = x.permute(0, 3, 1, 2).to(memory_format=torch.contiguous_format)
+        #x = x.permute(0, 3, 1, 2).to(memory_format=torch.contiguous_format)
         return x.float()
 
     def training_step(self, batch, batch_idx, optimizer_idx):
@@ -114,8 +115,10 @@ class VQModel(pl.LightningModule):
                    prog_bar=True, logger=True, on_step=True, on_epoch=True, sync_dist=True)
         self.log("val/aeloss", aeloss,
                    prog_bar=True, logger=True, on_step=True, on_epoch=True, sync_dist=True)
-        self.log_dict(log_dict_ae)
-        self.log_dict(log_dict_disc)
+        if version.parse(pl.__version__) >= version.parse('1.4.0'):
+            del log_dict_ae[f"val/rec_loss"]
+        #self.log_dict(log_dict_ae)
+        #self.log_dict(log_dict_disc)
         return self.log_dict
 
     def configure_optimizers(self):
